@@ -107,20 +107,11 @@ for coupon in triggers: print(coupon)
 
 triggers = coupons
 
-def get_lift(loyalty_id):
-	# TODO: Return a dictionary mapping food groups to differences
-	# between desired GQPI expenditure and actual for given subject.
-	return {}
-
-def coupon_lift(lift, coupon):
-	# TODO: Return a single numeric value for the amount that the
-	# coupon will improve the gqpi score
+def get_lift(loyalty_id, coupon1, coupon2):
 	return 1
 
-def augment_lift(lift, coupon):
-	# TODO: Return a likewise dictionary, but considering the GQPI 
-	# accounting for the coupons
-	return {}
+def get_improvement(loyalty_id, coupon):
+	return 1
 
 selection = []
 
@@ -138,12 +129,23 @@ elif len(triggers) == 2:
 
 # If there is more than two triggers
 else:
-	triggers.sort(key=lambda x: coupon_lift(get_lift(loyalty_id), x))
+	ex("There are more than two triggers")
+
+	# give a weight to all the triggers according if the GQPI categories
+	# they improve need to be improve or not
+	triggers.sort(key=lambda x: get_improvement(loyalty_id, x))
+
+	# Select the first coupon using this weight
 	selection.append(triggers[-1])
 
-	triggers.sort(key=lambda x: coupon_lift(augment_lift(get_lift(loyalty_id),
-		selection[0]
-	), x))
+	# Give a weight to all the other triggers according to the lift between
+	# the first coupon and the trigger
+	triggers.sort(key=lambda x: get_lift(loyalty_id, selection[0], x)
 
+	# Select the second coupon using this weight
 	selection.append(triggers[-1])
+
+
+
+
 
