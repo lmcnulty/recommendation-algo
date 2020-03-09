@@ -3,6 +3,31 @@
 import csv
 from random import randint
 
+compatability = {}
+
+with open("data/CouponCompatibilitywithParticPref.csv") as f:
+	reader = csv.reader(f)
+	for row in reader:
+		compatability[row[0]] = row[2:-1]
+
+class Coupon:
+	def __init__(self, csv_row):
+		self.number = int(csv_row[0])
+		self.category = int(csv_row[1])
+		self.subgroup = int(csv_row[2])
+		self.name = csv_row[3]
+		self.compatability = [
+			bool(int(x)) for x in
+			compatability[csv_row[3]]
+		] if csv_row[3] in compatability else [1] * 16
+	def __str__(self):
+		return str(self.number) + " " + self.name
+	def is_compatible(self, preferences):
+		for i, e in enumerate(self.compatability):
+			if preferences[i] and not e: 
+				return False
+		return True
+
 def ex(s): print("\n" + s + "\n")
 
 def out_list(l):
@@ -21,27 +46,16 @@ def get_user_preferences(id):
 		reader = csv.reader(f)
 		for row in reader:
 			if row[0] == "Subj088":
-				return row[1:-1]
+				return [bool(int(x)) for x in row[1:-1]]
 
 def get_user_purchases(id):
 	with open("data/appendeseptmay.csv") as append:
 		reader = csv.reader(append)
 		return [row for row in reader if row[0] == id]
 
-def check_compatible(preferences, group):
-	for i in range(len(group)):
-		if preferences[i] == "1" and group[i] == "0":
-			#print(i)
-			return False
-	return True
-
-#for e in sorted(get_user_data("43610000389"), key=lambda row: row[2]):
-	#print(" ".join(e))
-
 
 loyalty_id = "43610000389"
 loyalty_id = "43610003420"
-
 
 
 # Selection all the products purchased by the subject in the daily download. (755)
@@ -66,41 +80,70 @@ with open("data/CouponedUPCS.csv") as couponedUPCS:
 	for row in reader:
 		for purchase in purchases:
 			if row[0] == purchase[3]:
-				#purchase.append(row[-1])
-				#categoried.append(purchase)
 				categories.add(row[-1])
-	#purchases = categoried
 
+triggers = []
 coupons = []
-
-preferences = get_user_preferences(loyalty_id)
-
-compatability = {}
-
-with open("data/CouponCompatibilitywithParticPref.csv") as f:
-	reader = csv.reader(f)
-	for row in reader:
-		compatability[row[0]] = row[2:-1]
 
 # Select the coupon from the same categories of these products.
 with open ("data/CouponCodebookSASIMPEDIT.csv") as f:
 	reader = csv.reader(f)
 	for row in reader:
+		if row[0] == "CouponNumber": continue
+		coupon = Coupon(row)
+		coupons.append(coupon)
 		if row[3] in categories:
-			coupons.append(row)
+			triggers.append(Coupon(row))
 
-ex("Select the coupon from the same categories of these products.")
-out_list(coupons)
 
-"""
-for coupon in coupons:
-	if not coupon in compatability: continue
-	 and check_compatible(preferences, compatability[coupon]):
-"""
+preferences = get_user_preferences(loyalty_id)
 
-coupons = [coupon for coupon in coupons if coupon[3] in preferences and check_compatible(preferences, compatability[coupon[3]])]
+triggers = [
+	coupon for coupon in triggers if coupon.is_compatible(preferences)
+]
 
 ex("Keep only the coupon which can be use by the subject")
-out_list(coupons)
+for coupon in triggers: print(coupon)
 
+triggers = coupons
+
+def get_lift(loyalty_id):
+	# TODO: Return a dictionary mapping food groups to differences
+	# between desired GQPI expenditure and actual for given subject.
+	return {}
+
+def coupon_lift(lift, coupon):
+	# TODO: Return a single numeric value for the amount that the
+	# coupon will improve the gqpi score
+	return 1
+
+def augment_lift(lift, coupon):
+	# TODO: Return a likewise dictionary, but considering the GQPI 
+	# accounting for the coupons
+	return {}
+
+selection = []
+
+# If there is no trigger
+if len(triggers) < 1:
+	pass
+
+# If there is one trigger
+elif len(triggers) == 1:
+	pass
+
+# If there is two triggers
+elif len(triggers) == 2:
+	selection = triggers
+
+# If there is more than two triggers
+else:
+	triggers.sort(key=lambda x: coupon_lift(get_lift(loyalty_id), x))
+	selection.append(triggers[-1])
+
+	triggers.sort(key=lambda x: coupon_lift(augment_lift(get_lift(loyalty_id),
+		selection[0]
+	), x))
+
+	selection.append(triggers[-1])
 
