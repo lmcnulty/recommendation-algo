@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+from collections import defaultdict
 from random import randint, random
 
 compatability = {}
@@ -58,13 +59,30 @@ def get_user_purchases(id):
 def get_gqpi(customer_id, coupon):
 	return random()
 	
-def get_lift(loyalty_id, coupon1, coupon2):
-	return 1
+def get_lift(trips, couponA, couponB):
+	An = str(couponA.number)
+	Bn = str(couponB.number)
+
+	num_trips = len(trips)
+	A_trips   = len([trip for trip in trips if An in trip])
+	B_trips   = len([trip for trip in trips if Bn in trip])
+	AB_trips  = len([t for t in trips if An in t and Bn in t])
+	
+	prob_A         = A_trips / num_trips
+	prob_B         = B_trips / num_trips
+	prob_AB        = AB_trips / num_trips
+	prob_A_given_B = prob_AB / prob_B
+
+	return prob_A_given_B / prob_A if prob_A > 0 else 0
 
 def select(loyalty_id):
 
 	# Selection all the products purchased by the subject in the daily download. (755)
 	purchases = get_user_purchases(loyalty_id)
+
+	trips = defaultdict(lambda: [])
+	for purchase in purchases:
+		trips[purchase[1]].append(purchase[3])
 
 	ex("Get the subject purchases")
 	out_list(purchases)
@@ -106,10 +124,6 @@ def select(loyalty_id):
 	ex("Keep only the coupon which can be use by the subject")
 	for coupon in triggers: print(coupon)
 
-	#triggers = coupons
-
-
-
 	selection = []
 
 	# If there is no trigger
@@ -130,7 +144,7 @@ def select(loyalty_id):
 		]
 		# Give a weight to all the coupon using the lift between two
 		# coupon. 
-		possible_paris.sort(
+		possible_pairs.sort(
 			key=lambda coupon: get_lift(loyalty_id, selection[0], coupon)
 		)
 
@@ -149,7 +163,7 @@ def select(loyalty_id):
 		# the weight.
 		# (I don't really understand what this means, so I'm just using
 		#  the best lift score given the first selection.)
-		selection.push(
+		selection.append(
 			sorted(coupons, key=lambda coupon: get_lift(loyalty_id, selection[0], coupon))[-1]
 		)
 
