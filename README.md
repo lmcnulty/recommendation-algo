@@ -4,7 +4,7 @@ To use this program, you must have Python 3 and pip installed.
 
 To install the recommender, run:
 
-  pip3 install .
+    pip3 install .
 
 After installing, you can invoke the program by running `fsrecommend`
 
@@ -25,7 +25,8 @@ optional arguments:
   --compatibilitycsv COMPATIBILITYCSV
                         A csv file containing coupon compatibilities
   --secretkey SECRETKEY
-                        The secret AWS access key
+                        The secret AWS access key. If not passed, the program
+                        will try to read data from csv files
   --couponscsv COUPONSCSV
                         A csv file containing coupon information
   --endpoint ENDPOINT   The endpoint to query dynamodb from
