@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+
+import csv, boto3, argparse
+from collections import defaultdict
+from random import randint, random
+from boto3.dynamodb.conditions import Key, Attr
+
+
+parser = argparse.ArgumentParser(description='Output coupons for a specified user.')
+#parser.add_argument('url', type=str, help='The initial URL.')
+#parser.add_argument('xpath', type=str, help='The xpath for the URL of the next page.')
+parser.add_argument('--start', type=int, default=1, 
+                    help='The index at which to start the file numbering.')
+
+parser.add_argument('--compatibilitycsv', type=str, 
+                    default="data/CouponCompatibilitywithParticPref.csv", 
+					help="A csv file containing coupon compatibilities")
+
+parser.add_argument('--secretkey', default=None, 
+                    help='The secret AWS access key. If not passed, the program will try to read data from csv files')
+
+parser.add_argument('--couponscsv', type=str, 
+                    default="data/CouponCodebookSASIMPEDIT.csv", 
+					help="A csv file containing coupon information")
+
+parser.add_argument('--endpoint', type=str, 
+                    default="https://dynamodb.us-east-2.amazonaws.com",
+					help="The endpoint to query dynamodb from")
+
+parser.add_argument('--subjectscsv', default="data/subject_description.csv",
+                   help="A csv file containing the subject descriptions.")
+
+parser.add_argument('--purchasescsv', default="data/appendeseptmay.csv",
+                    help="A csv file containing user purchases")
+
+parser.add_argument('--subjectid', default="Subj088", help="The subject ID in the descriptions csv")
+
+parser.add_argument('--loyaltyid', default="43610003420", help="The subject's loyalty ID")
+
+parser.add_argument('--narrate', action='store_true', help="Pass this flag to give a running explanation of the algorithm.")
+
+args = parser.parse_args()
+
+
+
+class Coupon:
+	def __init__(self, number, category, subgroup, name):
+		#self.number = int(csv_row[0])
+		#self.category = int(csv_row[1])
+		#self.subgroup = int(csv_row[2])
+		#self.name = csv_row[3]
+		self.number = number,
+		self.category = category,
+		self.subgroup = subgroup,
+		self.name = name
+		self.compatability = [
+			bool(int(x)) for x in
+			compatability[self.name]
+		] if self.name in compatability else [1] * 16
+	def __str__(self):
+		return str(self.number) + " " + self.name
+	def is_compatible(self, preferences):
+		for i, e in enumerate(self.compatability):
+			if preferences[i] and not e: 
+				return False
+		return True
+
+def get_coupons_by_category_AWS(categories, coupons, triggers, preferences):
+	session = boto3.Session(
+		aws_access_key_id="AKIAXWA7FSGQAOKT2T7Q",
+		aws_secret_access_key=args.secretkey,
+	)
+
+	endpoint = args.endpoint
+	dynamodb = session.resource('dynamodb', region_name='us-east-2', endpoint_url=endpoint)
+
+	table = dynamodb.Table('CouponDB')
+
+	# There's probably a way to do this with fewer queries...
+	for category in categories:
+		triggers += [
+			Coupon(result.get('UPC'), result.get('coupon'), "", result.get("Description"))
+			for result in (table.query(KeyConditionExpression=Key('coupon').eq(category)))['Items']
+		]
+
+def get_coupons_by_category_CSV(categories, coupons, triggers, preferences):
+	with open (args.couponscsv) as f:
+		reader = csv.reader(f)
+		for row in reader:
+			if row[0] == "CouponNumber": continue
+			coupon = Coupon(int(row[0]), int(row[1]), int(row[2]), row[3])
+			if not coupon.is_compatible(preferences): continue
+			coupons.append(coupon)
+			if row[3] in categories:
+				triggers.append(Coupon(int(row[0]), int(row[1]), int(row[2]), row[3]))
+
+
+compatability = {}
+
+with open(args.compatibilitycsv) as f:
+	reader = csv.reader(f)
+	for row in reader:
+		compatability[row[0]] = row[2:-1]
+
+
+def ex(s): 
+	if args.narrate:
+		print("\n" + s + "\n")
+
+def out_list(l):
+	if args.narrate:
+		for i in range(5 if len(l) > 5 else len(l)):
+			print(" ".join(l[i]))
+		if len(l) > 5:
+			print("...")
+
+def get_stars(upc):
+	# TODO: This
+	return randint(0, 3)
+
+def get_user_preferences(id):
+	with open (args.subjectscsv) as f:
+		reader = csv.reader(f)
+		for row in reader:
+			if row[0] == args.subjectid:
+				return [bool(int(x)) for x in row[1:-1]]
+
+def get_user_purchases(id):
+	with open(args.purchasescsv) as append:
+		reader = csv.reader(append)
+		return [row for row in reader if row[0] == id]
+
+# This should return the GQPI for the category of the coupon for the
+# customer in `customer_id`
+def get_gqpi(customer_id, coupon):
+	return random()
+	
+def get_lift(trips, couponA, couponB):
+	An = str(couponA.number)
+	Bn = str(couponB.number)
+
+	num_trips = len(trips)
+	A_trips   = len([trip for trip in trips if An in trip])
+	B_trips   = len([trip for trip in trips if Bn in trip])
+	AB_trips  = len([t for t in trips if An in t and Bn in t])
+	
+	prob_A         = A_trips  / max(num_trips, .00001)
+	prob_B         = B_trips  / max(num_trips, .00001)
+	prob_AB        = AB_trips / max(num_trips, .00001)
+	prob_A_given_B = prob_AB  / max(prob_B,    .00001)
+
+	return prob_A_given_B / prob_A if prob_A > 0 else 0
+
+def select(loyalty_id):
+
+	# Selection all the products purchased by the subject in the daily download
+	purchases = get_user_purchases(loyalty_id)
+
+	trips = defaultdict(lambda: [])
+	for purchase in purchases:
+		trips[purchase[1]].append(purchase[3])
+
+	ex("Get the subject purchases")
+	out_list(purchases)
+
+
+	# From this list, keep the products with 0 or 1 star 
+	purchases = [row for row in purchases if get_stars(row[3]) < 2]
+
+	ex("From this list, keep the products with 0 or 1 star")
+	out_list(purchases)
+
+	categories = set()
+
+	# which has a brand(?) and a sub categories known.
+	with open("data/CouponedUPCS.csv") as couponedUPCS:
+		reader = csv.reader(couponedUPCS)
+		categoried = []
+		for row in reader:
+			for purchase in purchases:
+				if row[0] == purchase[3]:
+					categories.add(row[-1])
+
+	coupons = []
+	triggers = []
+
+	preferences = get_user_preferences(loyalty_id)
+	
+	# Select the coupon from the same categories of these products.
+	if args.secretkey != None:
+		try:
+			get_coupons_by_category_AWS(categories, coupons, triggers, preferences)
+		except:
+			get_coupons_by_category_CSV(categories, coupons, triggers, preferences)
+	else:
+		get_coupons_by_category_CSV(categories, coupons, triggers, preferences)
+
+
+	ex("Keep only the coupon which can be use by the subject")
+	if args.narrate: 
+		for coupon in triggers: print(coupon)
+
+	selection = []
+
+	# If there is no trigger
+	if len(triggers) < 1:
+		# use the worst GQPI (or HEI if we don’t have the GQPI data 
+		# or if the subject had purchased for less than 50$ in the 
+		# month) categories with coupon that could been used by the 
+		# subject as a list of possible coupon. Choose the first 
+		# coupon randomly in this list.
+		coupons.sort(key=lambda x: get_gqpi(loyalty_id, x))
+		selection.append(coupons[-1])
+
+		# Add to the list of possible coupon the list of coupon that 
+		# can improve the next worst GQPI(or HEI) category.
+		possible_pairs = [
+			coupon for coupon in coupons 
+			if coupon.category != selection[0].category
+		]
+		# Give a weight to all the coupon using the lift between two
+		# coupon. 
+		possible_pairs.sort(
+			key=lambda coupon: get_lift(loyalty_id, selection[0], coupon)
+		)
+
+		# Choose randomly (?) the second coupon using the weight.
+		selection.append(possible_pairs[-1])
+
+	# If there is one trigger
+	elif len(triggers) == 1:
+
+		# the first coupon is the trigger.
+		selection = triggers
+
+		# Select the list of coupon improving the worst 3 GQPI (or HEI)  
+		# categories. Give a weight to all the coupon using the lift  
+		# between two coupon. Choose randomly the second coupon using 
+		# the weight.
+		# (I don't really understand what this means, so I'm just using
+		#  the best lift score given the first selection.)
+		selection.append(
+			sorted(coupons, key=lambda coupon: get_lift(loyalty_id, selection[0], coupon))[-1]
+		)
+
+	# If there is two triggers
+	elif len(triggers) == 2:
+		# the two coupon will be the two triggers
+		selection = triggers
+
+	# If there is more than two triggers
+	else:
+		ex("There are more than two triggers")
+
+		# give a weight to all the triggers according if the GQPI 
+		# categories they improve need to be improve or not
+		triggers.sort(key=lambda x: get_gqpi(loyalty_id, x))
+
+		# Select the first coupon using this weight
+		selection.append(triggers[-1])
+
+		# Give a weight to all the other triggers according to the 
+		# lift between the first coupon and the trigger
+		triggers.sort(key=lambda x: get_lift(loyalty_id, selection[0], x))
+
+		# Select the second coupon using this weight
+		selection.append(triggers[-1] if triggers[-1] != selection[0] else triggers[-2])
+
+	# TODO:
+	# Select the educational content randomly in the list of educational 
+	# content that can be related with one of the two coupons and that 
+	# had not been send to the subject in the past weeks.
+
+	# TODO:
+	# If one of the coupon can be part of one of the recipes and that
+	# this recipes had not been send in the past weeks, select this 
+	# recipes.
+
+	return selection
+
+# This function gets called if you run the script directly, but not if
+# you import it as a library.
+if __name__ == "__main__":
+	loyalty_id = args.loyaltyid 
+	selection = select(loyalty_id)
+	print(str(selection[0].number[0]), str(selection[1].number[0]))
