@@ -1,9 +1,21 @@
 # Recommender Algorithm
 
+This program outputs a selection of coupons and education content for a
+single user. It is capable of connecting to the AWS database or reading
+data from CSV files. It should be run on a weekly basis. This can be
+accomplished with cron. To add cronjobs, run `crontab -e`. For
+documentation on formatting cronjobs, run `man cron`.
+
 To use this program, you must have Python 3 and pip installed. To 
 install the recommender, run: `pip3 install .`
 
-This package includes two scripts: `fsrecommend` and `gqpi`
+This package includes two scripts: `fsrecommend` and `gqpi`. The latter
+produces data nexessary for the program to function correctly and must
+be run separately.
+
+For an explanation of how the algorithm gets its results, refer to
+comments in the source code, or run `fsrecommend --narrate` for a 
+running explanation.
 
 ```
 usage: fsrecommend [-h] [--start START] [--compatibilitycsv COMPATIBILITYCSV]
@@ -55,4 +67,6 @@ optional arguments:
 
 Work to be done is documented inline in the source files. To list all
 TODOs, run `grep "TODO" fsrecommend gqpi`.
+
+![A data-flow diagram of the recommender algorithm](diagram.png)
 

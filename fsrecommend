@@ -5,6 +5,8 @@ from collections import defaultdict
 from random import randint, random
 from boto3.dynamodb.conditions import Key, Attr
 
+# TODO: Instead of running individually for each user, perhaps run
+# once, accounting for every user.
 
 parser = argparse.ArgumentParser(description='Output coupons for a specified user.')
 parser.add_argument('--start', type=int, default=1, 
@@ -297,4 +299,6 @@ def select(loyalty_id):
 if __name__ == "__main__":
 	loyalty_id = args.loyaltyid 
 	selection = select(loyalty_id)
+
+	# TODO: Instead of printing out the results, upload them to the database
 	print(str(selection[0].number[0]), str(selection[1].number[0]))
