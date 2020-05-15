@@ -1,4 +1,15 @@
-import csv
+#!/usr/bin/env python3
+
+import csv, argparse
+
+parser = argparse.ArgumentParser(description='Output GQPI csv.')
+
+parser.add_argument('--codes', type=str, 
+                    default="data/masterGQPIcodes.csv",
+					help="A csv file containing GQPI codes for each item")
+
+args = parser.parse_args()
+
 
 codes = {}
 # subjectIDs = {}
@@ -136,7 +147,8 @@ exceptions["750301578005"] = "2"
 exceptions["7800015345"] = "11"
 
 # load data
-with open("data/masterGQPIcodes.csv") as f:
+# TODO: Load data from database instead of CSV.
+with open(args.codes) as f:
     reader = csv.reader(f)
     next(reader)
     for row in reader:
@@ -152,7 +164,7 @@ with open("data/masterGQPIcodes.csv") as f:
             codes[row[0]] = int(row[2])
 
 # with open("insert subjectID file") as f:
-#     reader = csv.reader(f)
+					#     reader = csv.reader(f)
 #     for row in reader:
 #         subjectIDs[int(row[0])] = int(row[1])
 
@@ -297,7 +309,7 @@ def calculate_scores():
             # for category, score in this_subject.score_by_category.items():
             #     print("\t{}: {}".format(category, score))
 
-answer = raw_input("Would you like to calculate GPQI scores? (y/n): ")
+answer = input("Would you like to calculate GPQI scores? (y/n): ")
 while answer != "y" and answer != "n":
     answer = raw_input("Please type 'y' or 'n': ")
 if answer[0] == "y":

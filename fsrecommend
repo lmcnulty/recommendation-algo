@@ -7,8 +7,6 @@ from boto3.dynamodb.conditions import Key, Attr
 
 
 parser = argparse.ArgumentParser(description='Output coupons for a specified user.')
-#parser.add_argument('url', type=str, help='The initial URL.')
-#parser.add_argument('xpath', type=str, help='The xpath for the URL of the next page.')
 parser.add_argument('--start', type=int, default=1, 
                     help='The index at which to start the file numbering.')
 
@@ -39,16 +37,16 @@ parser.add_argument('--loyaltyid', default="43610003420", help="The subject's lo
 
 parser.add_argument('--narrate', action='store_true', help="Pass this flag to give a running explanation of the algorithm.")
 
+parser.add_argument('--gqpi', default='GPQIscores.csv', help="The csv file containing the subjects GQPI Scores.")
+
+parser.add_argument('--UPCS', default="data/CouponedUPCS.csv", help="The CSV file containing coupon UPCS")
+
 args = parser.parse_args()
 
 
 
 class Coupon:
 	def __init__(self, number, category, subgroup, name):
-		#self.number = int(csv_row[0])
-		#self.category = int(csv_row[1])
-		#self.subgroup = int(csv_row[2])
-		#self.name = csv_row[3]
 		self.number = number,
 		self.category = category,
 		self.subgroup = subgroup,
@@ -97,6 +95,7 @@ def get_coupons_by_category_CSV(categories, coupons, triggers, preferences):
 
 compatability = {}
 
+# TODO: Get values from database instead of CSV files
 with open(args.compatibilitycsv) as f:
 	reader = csv.reader(f)
 	for row in reader:
@@ -115,9 +114,13 @@ def out_list(l):
 			print("...")
 
 def get_stars(upc):
-	# TODO: This
+	# TODO: This should return the correct value from the Guiding Stars
+	# database for the given UPC. We received a powershell script that
+	# scraped the values from Guiding Star's website, but we need to
+	# port it to Python. I recommend using the BeautifulSoup library.
 	return randint(0, 3)
 
+# TODO: Get values from database instead of CSV
 def get_user_preferences(id):
 	with open (args.subjectscsv) as f:
 		reader = csv.reader(f)
@@ -125,15 +128,25 @@ def get_user_preferences(id):
 			if row[0] == args.subjectid:
 				return [bool(int(x)) for x in row[1:-1]]
 
+# TODO: Get values from database instead of CSV
 def get_user_purchases(id):
 	with open(args.purchasescsv) as append:
 		reader = csv.reader(append)
 		return [row for row in reader if row[0] == id]
 
+def category_to_gqpi(category):
+	# TODO: Given a category like `bread_1`, this should return the
+	# index in the GQPI CSV for that category
+	return randint(1, 11)
+
 # This should return the GQPI for the category of the coupon for the
 # customer in `customer_id`
 def get_gqpi(customer_id, coupon):
-	return random()
+	with open(args.gqpi) as f:
+		reader = csv.reader(f)
+		for row in reader:
+			if row[0] == id:
+				return row[category_to_gqpi(coupon.category)]
 	
 def get_lift(trips, couponA, couponB):
 	An = str(couponA.number)
@@ -173,7 +186,8 @@ def select(loyalty_id):
 	categories = set()
 
 	# which has a brand(?) and a sub categories known.
-	with open("data/CouponedUPCS.csv") as couponedUPCS:
+	# TODO: Get values from database instead of CSV
+	with open(args.UPCS) as couponedUPCS:
 		reader = csv.reader(couponedUPCS)
 		categoried = []
 		for row in reader:
@@ -266,15 +280,15 @@ def select(loyalty_id):
 		# Select the second coupon using this weight
 		selection.append(triggers[-1] if triggers[-1] != selection[0] else triggers[-2])
 
-	# TODO:
-	# Select the educational content randomly in the list of educational 
-	# content that can be related with one of the two coupons and that 
-	# had not been send to the subject in the past weeks.
+	# TODO: Select the educational content randomly in the list of 
+	# educational content that can be related with one of the two coupons 
+	# and that had not been send to the subject in the past weeks.
 
-	# TODO:
-	# If one of the coupon can be part of one of the recipes and that
+	# TODO: If one of the coupon can be part of one of the recipes and that
 	# this recipes had not been send in the past weeks, select this 
 	# recipes.
+
+	# Each of the above should be appended to "selection"
 
 	return selection
 
